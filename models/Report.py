@@ -20,7 +20,7 @@ class Report(Base):
     updated_at = Column(DateTime, onupdate=func.now())
 
    #A report can be obtained from multiple users (one-many relationship)=> Bi-directional
-    users = relationship('User', back_populates='reports')
+    user = relationship('User', back_populates='reports')
 
     def __repr__(self):
         return f"<Report(user_id={self.user_id}, date={self.date}, total_calories={self.total_calories}, goal_status={self.goal_status}, weekly_progress={self.weekly_progress}, created_at={self.created_at}, updated_at={self.updated_at})>"

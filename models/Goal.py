@@ -14,7 +14,7 @@ class Goal(Base):
     updated_at=Column(DateTime,onupdate=func.now())
 
     #Linking Goals to a particular user
-    users = relationship('User', back_populates='goals')
+    user = relationship('User', back_populates='goals')
 
     def __repr__(self):
         return f"<Goal(user_id={self.user_id}, daily_calories={self.daily_calories}, weekly_calories={self.weekly_calories})>"
