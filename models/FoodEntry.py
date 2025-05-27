@@ -1,14 +1,13 @@
 from sqlalchemy.orm import declarative_base, relationship
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime, func
-
-Base = declarative_base()
+from models import Base
 
 class FoodEntry(Base):
     __tablename__ = 'food_entries'
     id= Column(Integer(), primary_key=True)
     user_id=Column(Integer,ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     food_name=Column(String, nullable=False)
-    calories=Column(Integer(2000), nullable=False)
+    calories=Column(Integer, nullable=False)
     date = Column(DateTime, server_default=func.now())
     meal_type=Column(String, nullable=False)
     quantity=Column(Integer, nullable=False)

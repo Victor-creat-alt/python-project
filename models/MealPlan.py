@@ -1,7 +1,6 @@
 from sqlalchemy import Column, Integer, String, DateTime, ForeignKey, Table, func
-from sqlalchemy.orm import declarative_base, relationship
-
-Base = declarative_base()
+from sqlalchemy.orm import relationship
+from models import Base
 
 # Many-to-Many Association Table Connects users with their meals as database integrity is maintained
 meal_users = Table(

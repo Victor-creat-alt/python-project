@@ -1,7 +1,6 @@
 from sqlalchemy import Integer, Column, ForeignKey, DateTime, Boolean, Float, func
-from sqlalchemy.orm import declarative_base, relationship
-
-Base=declarative_base()
+from sqlalchemy.orm import  relationship
+from models import Base
 
 class Report(Base):
     __tablename__ = 'reports'

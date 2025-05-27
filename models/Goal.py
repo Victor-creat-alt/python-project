@@ -1,8 +1,6 @@
-from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy.orm import relationship
 from sqlalchemy import Column, Integer, ForeignKey, DateTime, func
-
-
-Base = declarative_base()
+from models import Base
 
 class Goal(Base):
     __tablename__ = 'goals'
