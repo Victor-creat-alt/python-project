@@ -1,0 +1,23 @@
+from sqlalchemy.orm import declarative_base, relationship
+from sqlalchemy import Column, Integer, ForeignKey, DateTime, func
+
+
+Base = declarative_base()
+
+class Goal(Base):
+    __tablename__ = 'goals'
+    id = Column(Integer(), primary_key=True)
+    user_id=Column(Integer, ForeignKey('users.id',ondelete='CASCADE'), nullable=False)
+    daily_calories=Column(Integer(), nullable=False)
+    weekly_calories=Column(Integer(), nullable=False)
+    created_at=Column(DateTime, server_default=func.now())
+    updated_at=Column(DateTime,onupdate=func.now())
+
+    #Linking Goals to a particular user
+    users = relationship('User', back_populates='goals')
+
+    def __repr__(self):
+        return f"<Goal(user_id={self.user_id}, daily_calories={self.daily_calories}, weekly_calories={self.weekly_calories})>"
+
+
+

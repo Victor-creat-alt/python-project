@@ -25,7 +25,7 @@ class User(Base):
 
     #Actual Representation of user Attributes
     def __repr__(self):
-        return f"<User(name={self.name}, created_at={self.created_at})"
+        return f"<User(name={self.name}, created_at={self.created_at})>"
 
     
 
