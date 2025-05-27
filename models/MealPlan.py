@@ -21,7 +21,7 @@ class MealPlan(Base):
     # Planned meals - Stores meal preparation details
     planned_meals = Column(String(1000), nullable=False)
     # Nutritional balance - Meal classification (optional)
-    nutrition_balance = Column(String(500), nullable=True)
+    nutrition_balance = Column(String(500), nullable=False)
     # Auto-generated timestamps
     created_at = Column(DateTime, server_default=func.now())
     updated_at = Column(DateTime, onupdate=func.now())
