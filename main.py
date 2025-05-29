@@ -11,7 +11,7 @@ from typing import Optional
 from datetime import datetime
 
 app = typer.Typer()
-DATABASE_URL = "postgresql://victor:vic123@localhost:5432/health_tracker"
+DATABASE_URL = "postgresql://victor123:victor@localhost:5432/health"
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 

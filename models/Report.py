@@ -8,7 +8,7 @@ class Report(Base):
     id = Column(Integer(), primary_key=True)
     user_id=Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
     #Stores report date as a TimeStamp
-    date=Column(DateTime, server_default=func.now(), unique=True)
+    date=Column(DateTime, server_default=func.now())
     #Calories consumed on a given date
     total_calories=Column(Integer(), nullable=False, default=0)
     #Checks User Status
@@ -16,7 +16,7 @@ class Report(Base):
     weekly_progress=Column(Float, nullable=False, default='0.0')
     #Auto-generated timestamps
     created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, onupdate=func.now())
+    
 
    #A report can be obtained from multiple users (one-many relationship)=> Bi-directional
     user = relationship('User', back_populates='reports')

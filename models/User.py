@@ -11,7 +11,6 @@ class User(Base):
     name = Column(String(255), unique=True, nullable=False)
     # Auto-generated timestamps
     created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, onupdate=func.now())
 
     # One-to-Many Relationships
     food_entries = relationship("FoodEntry", back_populates="user", cascade="all, delete-orphan")
