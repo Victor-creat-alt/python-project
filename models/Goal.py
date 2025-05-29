@@ -9,7 +9,7 @@ class Goal(Base):
     daily_calories=Column(Integer(), nullable=False)
     weekly_calories=Column(Integer(), nullable=False)
     created_at=Column(DateTime, server_default=func.now())
-    updated_at=Column(DateTime,onupdate=func.now())
+    
 
     #Linking Goals to a particular user
     user = relationship('User', back_populates='goals')
