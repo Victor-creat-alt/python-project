@@ -12,23 +12,19 @@ meal_users = Table(
 
 class MealPlan(Base):
     __tablename__ = 'meal_plans'
-    # Primary Key - Unique identifier for each meal plan
     id = Column(Integer, primary_key=True, autoincrement=True)
-    # Foreign Key - Links meal plans to users (for One-to-Many)
     user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False)
-    # Week number - Represents the week of the year (one meal plan per week)
-    week_number = Column(Integer, nullable=False, unique=True)
-    # Planned meals - Stores meal preparation details
+    week_number = Column(Integer, nullable=False)
+    day_of_week = Column(String(10), nullable=False)  # e.g., "Monday"
+    meal_type = Column(String(20), nullable=False)    # e.g., "breakfast", "lunch", "supper"
     planned_meals = Column(String(1000), nullable=False)
-    # Nutritional balance - Meal classification (optional)
     nutrition_balance = Column(String(500), nullable=False)
-    # Auto-generated timestamps
     created_at = Column(DateTime, server_default=func.now())
-   
 
-    # Relationships
     user = relationship("User", back_populates="meal_plans")
     shared_users = relationship("User", secondary=meal_users, back_populates="shared_meal_plans")
 
     def __repr__(self):
-        return f"<MealPlan(id={self.id}, user_id={self.user_id}, week_number={self.week_number}, planned_meals={self.planned_meals}, nutrition_balance={self.nutrition_balance})>"
+        return (f"<MealPlan(id={self.id}, user_id={self.user_id}, week_number={self.week_number}, "
+                f"day_of_week={self.day_of_week}, meal_type={self.meal_type}, "
+                f"planned_meals={self.planned_meals}, nutrition_balance={self.nutrition_balance})>")

@@ -9,23 +9,22 @@ from models.Report import Report
 from models.MealPlan import MealPlan
 from typing import Optional
 from datetime import datetime
+from sqlalchemy import extract
 
 app = typer.Typer()
-DATABASE_URL = "postgresql://victor123:victor@localhost:5432/health"
+DATABASE_URL = "postgresql://victor:victor123@localhost:5432/healthtracker"
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 
 # Ensure that the tables exist
 Base.metadata.create_all(engine)
 
-# Helper function to replace deprecated .get()
 def get_by_id(session, model, id):
     return session.get(model, id)
 
 # USER COMMANDS
 @app.command()
 def user_create(name: str):
-    """Create a new user."""
     session = Session()
     user = User(name=name)
     session.add(user)
@@ -35,7 +34,6 @@ def user_create(name: str):
 
 @app.command()
 def user_list():
-    """List all users."""
     session = Session()
     users = session.query(User).all()
     for user in users:
@@ -44,7 +42,6 @@ def user_list():
 
 @app.command()
 def user_update(id: int, name: Optional[str] = None):
-    """Update a user's name."""
     session = Session()
     user = get_by_id(session, User, id)
     if not user:
@@ -61,7 +58,6 @@ def user_update(id: int, name: Optional[str] = None):
 
 @app.command()
 def user_delete(id: int):
-    """Delete a user."""
     session = Session()
     user = get_by_id(session, User, id)
     if not user:
@@ -83,7 +79,6 @@ def food_entry_create(
     quantity: int,
     date: str
 ):
-    """Create a new food entry for a user."""
     session = Session()
     try:
         date_obj = datetime.fromisoformat(date)
@@ -106,7 +101,6 @@ def food_entry_create(
 
 @app.command()
 def food_entry_list(user_id: int):
-    """List all food entries for a user."""
     session = Session()
     food_entries = session.query(FoodEntry).filter_by(user_id=user_id).all()
     for entry in food_entries:
@@ -125,7 +119,6 @@ def entry_update(
     meal_type: Optional[str] = None,
     quantity: Optional[int] = None
 ):
-    """Update a food entry."""
     session = Session()
     entry = get_by_id(session, FoodEntry, id)
     if not entry:
@@ -153,7 +146,6 @@ def entry_update(
 
 @app.command()
 def entry_delete(id: int):
-    """Delete a food entry."""
     session = Session()
     entry = get_by_id(session, FoodEntry, id)
     if not entry:
@@ -168,7 +160,6 @@ def entry_delete(id: int):
 # GOAL COMMANDS
 @app.command()
 def goal_create(user_id: int, daily_calories: int, weekly_calories: int):
-    """Create a new goal for a user."""
     session = Session()
     goal = Goal(user_id=user_id, daily_calories=daily_calories, weekly_calories=weekly_calories)
     session.add(goal)
@@ -178,7 +169,6 @@ def goal_create(user_id: int, daily_calories: int, weekly_calories: int):
 
 @app.command()
 def goal_list(user_id: int):
-    """List all goals for a user."""
     session = Session()
     goals = session.query(Goal).filter_by(user_id=user_id).all()
     for goal in goals:
@@ -187,7 +177,6 @@ def goal_list(user_id: int):
 
 @app.command()
 def update_goal(id: int, daily_calories: Optional[int] = None, weekly_calories: Optional[int] = None):
-    """Update a goal."""
     session = Session()
     goal = get_by_id(session, Goal, id)
     if not goal:
@@ -204,7 +193,6 @@ def update_goal(id: int, daily_calories: Optional[int] = None, weekly_calories: 
 
 @app.command()
 def goal_delete(id: int):
-    """Delete a goal."""
     session = Session()
     goal = get_by_id(session, Goal, id)
     if not goal:
@@ -219,42 +207,67 @@ def goal_delete(id: int):
 # REPORT COMMANDS
 @app.command()
 def report_generate(
-   user_id: int,
-    weekly_progress: float,
-    goal_status: bool,
-    total_calories: int,
+    user_id: int,
     date: str
 ):
-    """Generate a report for a user."""
+    """
+    Generate a report for a user for the week containing the given date.
+    Calculates total calories, weekly progress, and goal status automatically.
+    """
     session = Session()
     user = get_by_id(session, User, user_id)
     if not user:
         typer.echo(f"User with ID {user_id} not found.")
         session.close()
         return
-    food_entries = session.query(FoodEntry).filter_by(user_id=user_id).all()
-    total_calories_val = sum(entry.calories for entry in food_entries) if total_calories is None else total_calories
+
     try:
         date_obj = datetime.fromisoformat(date)
     except ValueError:
         typer.echo("Invalid date format. Use YYYY-MM-DD or YYYY-MM-DD HH:MM:SS")
         session.close()
         return
+
+    # Get the week number and year for the given date
+    week_number = date_obj.isocalendar()[1]
+    year = date_obj.year
+
+    # Sum all food entries for the user for that week (calories * quantity)
+    food_entries = session.query(FoodEntry).filter(
+        FoodEntry.user_id == user_id,
+        extract('week', FoodEntry.date) == week_number,
+        extract('year', FoodEntry.date) == year
+    ).all()
+    total_calories = sum(entry.calories * entry.quantity for entry in food_entries)
+
+    # Get the user's goal
+    goal = session.query(Goal).filter_by(user_id=user_id).order_by(Goal.created_at.desc()).first()
+    if not goal:
+        typer.echo("No goal set for this user.")
+        session.close()
+        return
+
+    # Calculate weekly progress and goal status
+    weekly_progress = total_calories / goal.weekly_calories if goal.weekly_calories else 0
+    goal_status = total_calories <= goal.weekly_calories
+
     report = Report(
         user_id=user_id,
-        total_calories=total_calories_val,
+        total_calories=total_calories,
         date=date_obj,
         goal_status=goal_status,
         weekly_progress=weekly_progress
     )
     session.add(report)
     session.commit()
-    typer.echo(f"Report generated for User ID {user_id}: Total Calories {total_calories_val}")
+    typer.echo(
+        f"Report generated for User ID {user_id}: Total Calories {total_calories}, "
+        f"Weekly Progress: {weekly_progress:.2f}, Goal Status: {'Met' if goal_status else 'Not Met'}"
+    )
     session.close()
-
+       
 @app.command()
 def report_list(user_id: int):
-    """List all reports for a User"""
     session = Session()
     reports = session.query(Report).filter_by(user_id=user_id).all()
     for report in reports:
@@ -272,7 +285,6 @@ def update_report(
     weekly_progress: Optional[float] = None,
     date: Optional[str] = None
 ):
-    """Update a report."""
     session = Session()
     report = get_by_id(session, Report, id)
     if not report:
@@ -298,7 +310,6 @@ def update_report(
 
 @app.command()
 def delete_report(id: int):
-    """Delete a report."""
     session = Session()
     report = get_by_id(session, Report, id)
     if not report:
@@ -312,29 +323,49 @@ def delete_report(id: int):
 
 # MEAL PLAN COMMANDS
 @app.command()
-def meal_plan_create(user_id: int, week_number: int, planned_meals: str, nutrition_balance: str):
-    """Generate a meal plan for a user for the week"""
+def meal_plan_create(
+    user_id: int,
+    week_number: int,
+    day_of_week: str,
+    meal_type: str,
+    planned_meals: str,
+    nutrition_balance: str
+):
+    """
+    Generate a meal plan for a user for a specific day and meal type in the week.
+    """
     session = Session()
     meal_plan = MealPlan(
         user_id=user_id,
         week_number=week_number,
+        day_of_week=day_of_week,
+        meal_type=meal_type,
         planned_meals=planned_meals,
         nutrition_balance=nutrition_balance
     )
     session.add(meal_plan)
     session.commit()
-    typer.echo(f"Meal plan created for User ID {user_id} for week {week_number}")
+    typer.echo(f"Meal plan created for User ID {user_id} for {day_of_week} ({meal_type}) in week {week_number}")
     session.close()
 
 @app.command()
-def meal_plan_list(user_id: int):
-    """List all meal plans for a User"""
+def meal_plan_list(user_id: int, week_number: Optional[int] = None, day_of_week: Optional[str] = None, meal_type: Optional[str] = None):
+    """
+    List all meal plans for a User, optionally filtered by week, day, or meal type.
+    """
     session = Session()
-    meal_plans = session.query(MealPlan).filter_by(user_id=user_id).all()
+    query = session.query(MealPlan).filter_by(user_id=user_id)
+    if week_number is not None:
+        query = query.filter_by(week_number=week_number)
+    if day_of_week is not None:
+        query = query.filter_by(day_of_week=day_of_week)
+    if meal_type is not None:
+        query = query.filter_by(meal_type=meal_type)
+    meal_plans = query.all()
     for meal_plan in meal_plans:
         typer.echo(
-            f"Meal Plan ID: {meal_plan.id}, Week Number: {meal_plan.week_number}, "
-            f"Planned Meals: {meal_plan.planned_meals}, Nutrition Balance: {meal_plan.nutrition_balance}"
+            f"Meal Plan ID: {meal_plan.id}, Week: {meal_plan.week_number}, Day: {meal_plan.day_of_week}, "
+            f"Meal Type: {meal_plan.meal_type}, Planned Meals: {meal_plan.planned_meals}, Nutrition Balance: {meal_plan.nutrition_balance}"
         )
     session.close()
 
@@ -342,10 +373,14 @@ def meal_plan_list(user_id: int):
 def update_meal_plan(
     id: int,
     week_number: Optional[int] = None,
+    day_of_week: Optional[str] = None,
+    meal_type: Optional[str] = None,
     planned_meals: Optional[str] = None,
     nutrition_balance: Optional[str] = None
 ):
-    """Update a meal plan."""
+    """
+    Update a meal plan.
+    """
     session = Session()
     meal_plan = get_by_id(session, MealPlan, id)
     if not meal_plan:
@@ -354,6 +389,10 @@ def update_meal_plan(
         return
     if week_number is not None:
         meal_plan.week_number = week_number
+    if day_of_week is not None:
+        meal_plan.day_of_week = day_of_week
+    if meal_type is not None:
+        meal_plan.meal_type = meal_type
     if planned_meals is not None:
         meal_plan.planned_meals = planned_meals
     if nutrition_balance is not None:
@@ -364,7 +403,6 @@ def update_meal_plan(
 
 @app.command()
 def delete_meal_plan(id: int):
-    """Delete a meal plan."""
     session = Session()
     meal_plan = get_by_id(session, MealPlan, id)
     if not meal_plan:
@@ -376,9 +414,14 @@ def delete_meal_plan(id: int):
     typer.echo(f"Meal Plan with ID {id} deleted successfully.")
     session.close()
 
+# ...existing code...
+
 @app.command()
 def meal_plan_share(meal_plan_id: int, user_id: int):
-    """Share a meal plan with another user (adds to meal_users)."""
+    """
+    Share a meal plan with another user (adds to meal_users).
+    This will populate the meal_users association table.
+    """
     session = Session()
     meal_plan = get_by_id(session, MealPlan, meal_plan_id)
     user = get_by_id(session, User, user_id)
@@ -400,27 +443,10 @@ def meal_plan_share(meal_plan_id: int, user_id: int):
     session.close()
 
 @app.command()
-def meal_plan_unshare(meal_plan_id: int, user_id: int):
-    """Unshare a meal plan from a user (removes from meal_users)."""
-    session = Session()
-    meal_plan = get_by_id(session, MealPlan, meal_plan_id)
-    user = get_by_id(session, User, user_id)
-    if not meal_plan or not user:
-        typer.echo("Meal plan or user not found.")
-        session.close()
-        return
-    if user not in meal_plan.shared_users:
-        typer.echo(f"User {user_id} does not have access to meal plan {meal_plan_id}.")
-        session.close()
-        return
-    meal_plan.shared_users.remove(user)
-    session.commit()
-    typer.echo(f"Meal plan {meal_plan_id} unshared from user {user_id}.")
-    session.close()
-
-@app.command()
 def meal_plan_shared_users(meal_plan_id: int):
-    """List all users a meal plan is shared with."""
+    """
+    List all users a meal plan is shared with.
+    """
     session = Session()
     meal_plan = get_by_id(session, MealPlan, meal_plan_id)
     if not meal_plan:
@@ -436,7 +462,9 @@ def meal_plan_shared_users(meal_plan_id: int):
 
 @app.command()
 def user_shared_meal_plans(user_id: int):
-    """List all meal plans shared with a user."""
+    """
+    List all meal plans shared with a user.
+    """
     session = Session()
     user = get_by_id(session, User, user_id)
     if not user:
@@ -448,10 +476,11 @@ def user_shared_meal_plans(user_id: int):
     else:
         for meal_plan in user.shared_meal_plans:
             typer.echo(
-                f"Meal Plan ID: {meal_plan.id}, Week Number: {meal_plan.week_number}, "
-                f"Planned Meals: {meal_plan.planned_meals}, Nutrition Balance: {meal_plan.nutrition_balance}"
+                f"Meal Plan ID: {meal_plan.id}, Week: {meal_plan.week_number}, Day: {meal_plan.day_of_week}, "
+                f"Meal Type: {meal_plan.meal_type}, Planned Meals: {meal_plan.planned_meals}, Nutrition Balance: {meal_plan.nutrition_balance}"
             )
     session.close()
+# ...existing code...
 
 if __name__ == "__main__":
     app()

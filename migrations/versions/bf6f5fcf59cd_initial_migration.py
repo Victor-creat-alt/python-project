@@ -1,8 +1,8 @@
 """Initial migration
 
-Revision ID: b118296022f3
+Revision ID: bf6f5fcf59cd
 Revises: 
-Create Date: 2025-05-29 12:44:46.239974
+Create Date: 2025-06-03 13:49:51.789242
 
 """
 from typing import Sequence, Union
@@ -12,7 +12,7 @@ import sqlalchemy as sa
 
 
 # revision identifiers, used by Alembic.
-revision: str = 'b118296022f3'
+revision: str = 'bf6f5fcf59cd'
 down_revision: Union[str, None] = None
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
@@ -52,12 +52,13 @@ def upgrade() -> None:
     sa.Column('id', sa.Integer(), autoincrement=True, nullable=False),
     sa.Column('user_id', sa.Integer(), nullable=False),
     sa.Column('week_number', sa.Integer(), nullable=False),
+    sa.Column('day_of_week', sa.String(length=10), nullable=False),
+    sa.Column('meal_type', sa.String(length=20), nullable=False),
     sa.Column('planned_meals', sa.String(length=1000), nullable=False),
     sa.Column('nutrition_balance', sa.String(length=500), nullable=False),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('week_number')
+    sa.PrimaryKeyConstraint('id')
     )
     op.create_table('reports',
     sa.Column('id', sa.Integer(), nullable=False),
@@ -68,8 +69,7 @@ def upgrade() -> None:
     sa.Column('weekly_progress', sa.Float(), nullable=False),
     sa.Column('created_at', sa.DateTime(), server_default=sa.text('now()'), nullable=True),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),
-    sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('date')
+    sa.PrimaryKeyConstraint('id')
     )
     op.create_table('meal_users',
     sa.Column('user_id', sa.Integer(), nullable=False),

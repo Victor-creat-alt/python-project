@@ -4,15 +4,10 @@ from models import Base
 
 class User(Base):
     __tablename__ = 'users'
-
-    # Primary Key - Uniquely identifies a user
     id = Column(Integer, primary_key=True, autoincrement=True)
-    # User's name - Must be unique for identification
     name = Column(String(255), unique=True, nullable=False)
-    # Auto-generated timestamps
     created_at = Column(DateTime, server_default=func.now())
 
-    # One-to-Many Relationships
     food_entries = relationship("FoodEntry", back_populates="user", cascade="all, delete-orphan")
     reports = relationship("Report", back_populates="user", cascade="all, delete-orphan")
     goals = relationship("Goal", back_populates="user", cascade="all, delete-orphan")

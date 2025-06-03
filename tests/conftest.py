@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 from models import Base
 
 # Use an in-memory SQLite database for testing
-TEST_DATABASE_URL = "postgresql://victor123:victor@localhost:5432/health"
+TEST_DATABASE_URL = "postgresql://victor:victor123@localhost:5432/healthtracker"
 
 @pytest.fixture(scope="session")
 def engine():
