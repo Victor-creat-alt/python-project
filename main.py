@@ -18,6 +18,10 @@ Session = sessionmaker(bind=engine)
 # Ensure that the tables exist
 Base.metadata.create_all(engine)
 
+# Helper function to replace deprecated .get()
+def get_by_id(session, model, id):
+    return session.get(model, id)
+
 # USER COMMANDS
 @app.command()
 def user_create(name: str):
@@ -36,6 +40,37 @@ def user_list():
     users = session.query(User).all()
     for user in users:
         typer.echo(f"User ID: {user.id}, Name: {user.name}")
+    session.close()
+
+@app.command()
+def user_update(id: int, name: Optional[str] = None):
+    """Update a user's name."""
+    session = Session()
+    user = get_by_id(session, User, id)
+    if not user:
+        typer.echo(f"User with ID {id} not found.")
+        session.close()
+        return
+    if name:
+        user.name = name
+        session.commit()
+        typer.echo(f"User with ID {id} updated successfully to name '{name}'.")
+    else:
+        typer.echo("No new name provided. Nothing to update.")
+    session.close()
+
+@app.command()
+def user_delete(id: int):
+    """Delete a user."""
+    session = Session()
+    user = get_by_id(session, User, id)
+    if not user:
+        typer.echo(f"User with ID {id} not found.")
+        session.close()
+        return
+    session.delete(user)
+    session.commit()
+    typer.echo(f"User with ID {id} deleted successfully.")
     session.close()
 
 # FOOD ENTRY COMMANDS
@@ -92,7 +127,7 @@ def entry_update(
 ):
     """Update a food entry."""
     session = Session()
-    entry = session.query(FoodEntry).get(id)
+    entry = get_by_id(session, FoodEntry, id)
     if not entry:
         typer.echo(f"Food entry with ID {id} not found.")
         session.close()
@@ -120,7 +155,7 @@ def entry_update(
 def entry_delete(id: int):
     """Delete a food entry."""
     session = Session()
-    entry = session.query(FoodEntry).get(id)
+    entry = get_by_id(session, FoodEntry, id)
     if not entry:
         typer.echo(f"Food entry with ID {id} not found.")
         session.close()
@@ -154,7 +189,7 @@ def goal_list(user_id: int):
 def update_goal(id: int, daily_calories: Optional[int] = None, weekly_calories: Optional[int] = None):
     """Update a goal."""
     session = Session()
-    goal = session.query(Goal).get(id)
+    goal = get_by_id(session, Goal, id)
     if not goal:
         typer.echo(f"Goal with ID {id} not found.")
         session.close()
@@ -171,7 +206,7 @@ def update_goal(id: int, daily_calories: Optional[int] = None, weekly_calories: 
 def goal_delete(id: int):
     """Delete a goal."""
     session = Session()
-    goal = session.query(Goal).get(id)
+    goal = get_by_id(session, Goal, id)
     if not goal:
         typer.echo(f"Goal with ID {id} not found.")
         session.close()
@@ -192,7 +227,7 @@ def report_generate(
 ):
     """Generate a report for a user."""
     session = Session()
-    user = session.query(User).get(user_id)
+    user = get_by_id(session, User, user_id)
     if not user:
         typer.echo(f"User with ID {user_id} not found.")
         session.close()
@@ -239,7 +274,7 @@ def update_report(
 ):
     """Update a report."""
     session = Session()
-    report = session.query(Report).get(id)
+    report = get_by_id(session, Report, id)
     if not report:
         typer.echo(f"Report with ID {id} not found.")
         session.close()
@@ -265,7 +300,7 @@ def update_report(
 def delete_report(id: int):
     """Delete a report."""
     session = Session()
-    report = session.query(Report).get(id)
+    report = get_by_id(session, Report, id)
     if not report:
         typer.echo(f"Report with ID {id} not found.")
         session.close()
@@ -312,7 +347,7 @@ def update_meal_plan(
 ):
     """Update a meal plan."""
     session = Session()
-    meal_plan = session.query(MealPlan).get(id)
+    meal_plan = get_by_id(session, MealPlan, id)
     if not meal_plan:
         typer.echo(f"Meal Plan with ID {id} not found.")
         session.close()
@@ -331,7 +366,7 @@ def update_meal_plan(
 def delete_meal_plan(id: int):
     """Delete a meal plan."""
     session = Session()
-    meal_plan = session.query(MealPlan).get(id)
+    meal_plan = get_by_id(session, MealPlan, id)
     if not meal_plan:
         typer.echo(f"Meal plan with ID {id} not found.")
         session.close()
@@ -339,6 +374,83 @@ def delete_meal_plan(id: int):
     session.delete(meal_plan)
     session.commit()
     typer.echo(f"Meal Plan with ID {id} deleted successfully.")
+    session.close()
+
+@app.command()
+def meal_plan_share(meal_plan_id: int, user_id: int):
+    """Share a meal plan with another user (adds to meal_users)."""
+    session = Session()
+    meal_plan = get_by_id(session, MealPlan, meal_plan_id)
+    user = get_by_id(session, User, user_id)
+    if not meal_plan:
+        typer.echo(f"Meal plan with ID {meal_plan_id} not found.")
+        session.close()
+        return
+    if not user:
+        typer.echo(f"User with ID {user_id} not found.")
+        session.close()
+        return
+    if user in meal_plan.shared_users:
+        typer.echo(f"User {user_id} already has access to meal plan {meal_plan_id}.")
+        session.close()
+        return
+    meal_plan.shared_users.append(user)
+    session.commit()
+    typer.echo(f"Meal plan {meal_plan_id} shared with user {user_id}.")
+    session.close()
+
+@app.command()
+def meal_plan_unshare(meal_plan_id: int, user_id: int):
+    """Unshare a meal plan from a user (removes from meal_users)."""
+    session = Session()
+    meal_plan = get_by_id(session, MealPlan, meal_plan_id)
+    user = get_by_id(session, User, user_id)
+    if not meal_plan or not user:
+        typer.echo("Meal plan or user not found.")
+        session.close()
+        return
+    if user not in meal_plan.shared_users:
+        typer.echo(f"User {user_id} does not have access to meal plan {meal_plan_id}.")
+        session.close()
+        return
+    meal_plan.shared_users.remove(user)
+    session.commit()
+    typer.echo(f"Meal plan {meal_plan_id} unshared from user {user_id}.")
+    session.close()
+
+@app.command()
+def meal_plan_shared_users(meal_plan_id: int):
+    """List all users a meal plan is shared with."""
+    session = Session()
+    meal_plan = get_by_id(session, MealPlan, meal_plan_id)
+    if not meal_plan:
+        typer.echo(f"Meal plan with ID {meal_plan_id} not found.")
+        session.close()
+        return
+    if not meal_plan.shared_users:
+        typer.echo("No users have access to this meal plan.")
+    else:
+        for user in meal_plan.shared_users:
+            typer.echo(f"User ID: {user.id}, Name: {user.name}")
+    session.close()
+
+@app.command()
+def user_shared_meal_plans(user_id: int):
+    """List all meal plans shared with a user."""
+    session = Session()
+    user = get_by_id(session, User, user_id)
+    if not user:
+        typer.echo(f"User with ID {user_id} not found.")
+        session.close()
+        return
+    if not hasattr(user, "shared_meal_plans") or not user.shared_meal_plans:
+        typer.echo("No meal plans shared with this user.")
+    else:
+        for meal_plan in user.shared_meal_plans:
+            typer.echo(
+                f"Meal Plan ID: {meal_plan.id}, Week Number: {meal_plan.week_number}, "
+                f"Planned Meals: {meal_plan.planned_meals}, Nutrition Balance: {meal_plan.nutrition_balance}"
+            )
     session.close()
 
 if __name__ == "__main__":

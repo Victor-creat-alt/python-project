@@ -21,7 +21,7 @@ Ensure PostgreSQL is running and create the database if needed:
 
 ```bash
 psql -U victor
-CREATE DATABASE health_tracker;
+CREATE DATABASE health;
 ```
 
 ---
